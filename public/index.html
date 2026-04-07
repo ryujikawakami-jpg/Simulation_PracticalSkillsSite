@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BookShelf - 書籍管理</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fdf8f3;--white:#fff;--primary:#f97316;--primary-h:#ea580c;
+  --danger:#ef4444;--danger-h:#dc2626;--success:#22c55e;--warning:#eab308;
+  --text:#1e293b;--muted:#64748b;--border:#e2e8f0;--radius:8px;
+  --shadow:0 1px 3px rgba(0,0,0,.1);
+}
+body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+nav{background:var(--primary);color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px}
+.nav-logo{font-weight:700;font-size:1.2rem}
+.nav-user{display:flex;align-items:center;gap:12px;font-size:.9rem}
+#logout-btn{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 14px;border-radius:var(--radius);cursor:pointer;font-size:.85rem}
+#logout-btn:hover{background:rgba(255,255,255,.3)}
+.page{display:none}.page.active{display:block}
+#login-page.active{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#f97316 0%,#f59e0b 100%);position:relative;overflow:hidden}
+#login-page::before{content:'';position:absolute;width:600px;height:600px;background:rgba(255,255,255,.06);border-radius:50%;top:-200px;right:-100px}
+#login-page::after{content:'';position:absolute;width:400px;height:400px;background:rgba(255,255,255,.04);border-radius:50%;bottom:-150px;left:-80px}
+.login-card{background:var(--white);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:44px 40px;width:380px;position:relative;z-index:1;animation:cardSlideUp .5s ease-out}
+@keyframes cardSlideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.login-logo{width:56px;height:56px;background:var(--primary);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:20px;box-shadow:0 4px 12px rgba(249,115,22,.3)}
+.login-card h1{font-size:1.5rem;color:var(--text);margin-bottom:4px}
+.login-card .login-subtitle{color:var(--muted);font-size:.9rem;margin-bottom:28px}
+.form-group{margin-bottom:16px}
+label{display:block;font-size:.85rem;font-weight:600;margin-bottom:6px}
+input[type=text],input[type=password],input[type=email],textarea,select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:.95rem;outline:none;transition:border .2s;background:#fff}
+input:focus,textarea:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(249,115,22,.15)}
+.error-msg{color:var(--danger);font-size:.82rem;margin-top:4px;display:none}
+.error-msg.show{display:block}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:none;border-radius:var(--radius);font-size:.9rem;font-weight:600;cursor:pointer;transition:background .2s}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-h)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:var(--danger-h)}
+.btn-secondary{background:var(--border);color:var(--text)}.btn-secondary:hover{background:#cbd5e1}
+.btn-warning{background:var(--warning);color:#fff}.btn-warning:hover{background:#ca8a04}
+.btn-success{background:var(--success);color:#fff}.btn-success:hover{background:#16a34a}
+.btn-full{width:100%;justify-content:center}
+.btn-sm{padding:5px 10px;font-size:.8rem}
+.login-hint{margin-top:16px;font-size:.8rem;color:var(--muted);background:#fff7ed;padding:10px;border-radius:var(--radius)}
+.container{max-width:1000px;margin:0 auto;padding:24px 16px}
+
+/* SIDEBAR NAV */
+.app-layout{display:flex;gap:0;min-height:calc(100vh - 56px)}
+.sidebar{width:200px;background:var(--white);border-right:1px solid var(--border);padding:16px 0;flex-shrink:0}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;font-size:.9rem;color:var(--muted);border-left:3px solid transparent;transition:all .15s}
+.sidebar-item:hover{background:#fff7ed;color:var(--text)}
+.sidebar-item.active{color:var(--primary);font-weight:700;border-left-color:var(--primary);background:#fff7ed}
+.sidebar-icon{font-size:1.1rem;width:20px;text-align:center}
+.main-content{flex:1;padding:28px 24px;overflow:auto}
+
+/* SECTION */
+.section{display:none}.section.active{display:block}
+.section-title{font-size:1.15rem;font-weight:700;margin-bottom:20px}
+
+/* TOOLBAR */
+.toolbar{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.toolbar-right{display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap}
+#search-input{width:180px}
+#filter-genre,#filter-author{width:120px}
+
+/* BOOK LIST */
+.book-list{display:flex;flex-direction:column;gap:10px}
+.book-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;display:flex;align-items:flex-start;gap:12px;transition:box-shadow .2s}
+.book-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.book-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);cursor:pointer;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.book-check.done{background:var(--success);border-color:var(--success)}
+.book-check.done::after{content:'\2713';color:#fff;font-size:.75rem;font-weight:700}
+.book-body{flex:1;min-width:0}
+.book-title{font-weight:600;font-size:.95rem}
+.book-title.done{text-decoration:line-through;color:var(--muted)}
+.book-meta{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}
+.book-note{font-size:.8rem;color:var(--muted);margin-top:4px;font-style:italic}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;font-weight:600}
+.badge-fiction{background:#ede9fe;color:#7c3aed}
+.badge-non-fiction{background:#dbeafe;color:#1d4ed8}
+.badge-tech{background:#dcfce7;color:#15803d}
+.badge-manga{background:#fce7f3;color:#be185d}
+.badge-finished{background:#dcfce7;color:#15803d}
+.badge-reading{background:#fef3c7;color:#92400e}
+.badge-unread{background:#f1f5f9;color:var(--muted)}
+.book-author,.book-pages{font-size:.78rem;color:var(--muted)}
+.book-actions{display:flex;gap:6px;flex-shrink:0}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.star{color:#f59e0b;font-size:.8rem}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--white);border-radius:12px;width:500px;max-width:95vw;padding:28px;box-shadow:0 8px 32px rgba(0,0,0,.18);transform:translateY(12px);transition:transform .2s;max-height:90vh;overflow-y:auto}
+.overlay.open .modal{transform:translateY(0)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-header h3{font-size:1.1rem}
+.modal-close{background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted);line-height:1}
+.modal-close:hover{color:var(--text)}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* PROFILE */
+.profile-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px;max-width:500px}
+.profile-card h2{margin-bottom:20px;font-size:1.1rem}
+.profile-avatar{width:72px;height:72px;border-radius:50%;background:var(--primary);color:#fff;font-size:2rem;display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+
+/* DISPLAY SETTINGS */
+.notif-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;max-width:520px}
+.notif-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
+.notif-row:last-of-type{border-bottom:none}
+.notif-label{font-size:.95rem;font-weight:500}
+.notif-desc{font-size:.8rem;color:var(--muted);margin-top:2px}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:999px;cursor:pointer;transition:.3s}
+.toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked+.toggle-slider{background:var(--primary)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(20px)}
+
+/* AUTHORS */
+.member-list{display:flex;flex-direction:column;gap:10px}
+.member-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px;display:flex;align-items:center;gap:14px}
+.member-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;color:#fff;flex-shrink:0}
+.member-info{flex:1}
+.member-name{font-weight:600;font-size:.95rem}
+.member-role{font-size:.8rem;color:var(--muted);margin-top:2px}
+.member-actions{display:flex;gap:6px}
+.search-bar{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:center}
+.search-bar input{flex:1}
+
+/* STATS / REPORT */
+.report-toolbar{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
+.stat-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;text-align:center}
+.stat-num{font-size:2rem;font-weight:700;color:var(--primary)}
+.stat-label{font-size:.82rem;color:var(--muted);margin-top:4px}
+.report-table{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.report-table table{width:100%;border-collapse:collapse;font-size:.88rem}
+.report-table th{background:#fff7ed;padding:10px 14px;text-align:left;font-weight:600;border-bottom:1px solid var(--border)}
+.report-table td{padding:10px 14px;border-bottom:1px solid var(--border)}
+.report-table tr:last-child td{border-bottom:none}
+.report-table tr:hover td{background:#fff7ed}
+
+/* EMAIL CHANGE */
+.pw-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px;max-width:440px}
+
+/* TOAST */
+.success-toast{position:fixed;bottom:24px;right:24px;background:var(--success);color:#fff;padding:12px 20px;border-radius:var(--radius);font-weight:600;font-size:.9rem;box-shadow:0 4px 12px rgba(0,0,0,.15);opacity:0;transform:translateY(8px);transition:all .3s;z-index:200}
+.success-toast.show{opacity:1;transform:translateY(0)}
+.divider{height:1px;background:var(--border);margin:16px 0}
+</style>
+</head>
+<body>
+
+<!-- ========== LOGIN ========== -->
+<div id="login-page" class="page active">
+    <div class="login-card">
+      <div class="login-logo">📚</div>
+      <h1>BookShelf</h1>
+      <p class="login-subtitle">書籍管理アプリにログイン</p>
+      <div class="form-group">
+        <label for="username">ユーザー名</label>
+        <input type="text" id="username" data-testid="username-input" placeholder="ユーザー名を入力" autocomplete="off"/>
+        <div class="error-msg" id="username-error">ユーザー名を入力してください</div>
+      </div>
+      <div class="form-group">
+        <label for="password">パスワード</label>
+        <input type="password" id="password" data-testid="password-input" placeholder="パスワードを入力"/>
+        <div class="error-msg" id="password-error">パスワードを入力してください</div>
+      </div>
+      <div class="error-msg" id="login-error" style="margin-bottom:12px">ユーザー名またはパスワードが正しくありません</div>
+      <button class="btn btn-primary btn-full" id="login-btn" data-testid="login-btn">ログイン</button>
+      <div class="login-hint">テスト用アカウント：ユーザー名 <strong>admin</strong> ／ パスワード <strong>password</strong></div>
+    </div>
+</div>
+
+<!-- ========== APP ========== -->
+<div id="app-page" class="page">
+  <nav>
+    <span class="nav-logo">📚 BookShelf</span>
+    <div class="nav-user">
+      <span id="nav-username"></span>
+      <button id="logout-btn" data-testid="logout-btn">ログアウト</button>
+    </div>
+  </nav>
+  <div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-item active" data-section="books" data-testid="nav-books"><span class="sidebar-icon">📖</span>書籍一覧</div>
+      <div class="sidebar-item" data-section="authors" data-testid="nav-authors"><span class="sidebar-icon">✍️</span>著者</div>
+      <div class="sidebar-item" data-section="stats" data-testid="nav-stats"><span class="sidebar-icon">📊</span>統計</div>
+      <div class="sidebar-item" data-section="display" data-testid="nav-display"><span class="sidebar-icon">🎨</span>表示設定</div>
+      <div class="sidebar-item" data-section="email" data-testid="nav-email"><span class="sidebar-icon">✉️</span>メール変更</div>
+      <div class="sidebar-item" data-section="profile" data-testid="nav-profile"><span class="sidebar-icon">👤</span>プロフィール</div>
+    </aside>
+
+    <div class="main-content">
+
+      <!-- ── BOOKS ── -->
+      <div class="section active" id="section-books">
+        <div class="toolbar">
+          <input type="text" id="search-input" data-testid="search-input" placeholder="🔍 書籍を検索..."/>
+          <select id="filter-genre" data-testid="filter-genre">
+            <option value="all">すべてのジャンル</option>
+            <option value="fiction">fiction</option>
+            <option value="non-fiction">non-fiction</option>
+            <option value="tech">tech</option>
+            <option value="manga">manga</option>
+          </select>
+          <select id="filter-author" data-testid="filter-author">
+            <option value="all">著者：全員</option>
+            <option value="山田">山田</option>
+            <option value="中村">中村</option>
+            <option value="高橋">高橋</option>
+            <option value="unknown">unknown</option>
+          </select>
+          <div class="toolbar-right">
+            <button class="btn btn-primary" id="add-book-btn" data-testid="add-book-btn">＋ 書籍追加</button>
+          </div>
+        </div>
+        <div class="book-list" id="book-list" data-testid="book-list"></div>
+        <div class="empty-state" id="empty-state" style="display:none"><p>書籍が見つかりません</p><small>条件を変えて検索してみてください</small></div>
+      </div>
+
+      <!-- ── AUTHORS ── -->
+      <div class="section" id="section-authors">
+        <p class="section-title">著者一覧</p>
+        <div class="search-bar">
+          <input type="text" id="author-search" data-testid="author-search" placeholder="🔍 著者を検索..."/>
+          <button class="btn btn-primary btn-sm" id="add-author-btn" data-testid="add-author-btn">＋ 著者追加</button>
+        </div>
+        <div class="member-list" id="author-list" data-testid="author-list"></div>
+      </div>
+
+      <!-- ── STATS ── -->
+      <div class="section" id="section-stats">
+        <p class="section-title">統計</p>
+        <div class="report-toolbar">
+          <label style="font-size:.85rem;font-weight:600;margin:0">ジャンル：</label>
+          <select id="stats-genre" data-testid="stats-genre">
+            <option value="all">すべて</option>
+            <option value="fiction">fiction</option>
+            <option value="non-fiction">non-fiction</option>
+            <option value="tech">tech</option>
+            <option value="manga">manga</option>
+          </select>
+          <label style="font-size:.85rem;font-weight:600;margin:0">著者：</label>
+          <select id="stats-author" data-testid="stats-author">
+            <option value="all">全員</option>
+            <option value="山田">山田</option>
+            <option value="中村">中村</option>
+            <option value="高橋">高橋</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="stats-export-btn" data-testid="stats-export-btn">📥 エクスポート</button>
+        </div>
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="report-table">
+          <table>
+            <thead><tr><th>タイトル</th><th>著者</th><th>ジャンル</th><th>ステータス</th><th>評価</th><th>ページ数</th></tr></thead>
+            <tbody id="stats-tbody" data-testid="stats-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── DISPLAY SETTINGS ── -->
+      <div class="section" id="section-display">
+        <p class="section-title">表示設定</p>
+        <div class="notif-card">
+          <div class="notif-row">
+            <div><div class="notif-label">ダークモード</div><div class="notif-desc">画面を暗い配色に切り替えます</div></div>
+            <label class="toggle"><input type="checkbox" id="display-darkmode" data-testid="display-darkmode"/><span class="toggle-slider"></span></label>
+          </div>
+          <div class="notif-row">
+            <div><div class="notif-label">コンパクト表示</div><div class="notif-desc">一覧の行間を狭くして多くの書籍を表示</div></div>
+            <label class="toggle"><input type="checkbox" id="display-compact" data-testid="display-compact" checked/><span class="toggle-slider"></span></label>
+          </div>
+          <div class="notif-row">
+            <div><div class="notif-label">表紙表示</div><div class="notif-desc">書籍一覧に表紙画像を表示します</div></div>
+            <label class="toggle"><input type="checkbox" id="display-cover" data-testid="display-cover" checked/><span class="toggle-slider"></span></label>
+          </div>
+          <div class="notif-row">
+            <div><div class="notif-label">評価表示</div><div class="notif-desc">書籍カードに星評価を表示します</div></div>
+            <label class="toggle"><input type="checkbox" id="display-rating" data-testid="display-rating" checked/><span class="toggle-slider"></span></label>
+          </div>
+          <div class="notif-row">
+            <div><div class="notif-label">アニメーション</div><div class="notif-desc">画面遷移やカード表示にアニメーションを使用</div></div>
+            <label class="toggle"><input type="checkbox" id="display-animation" data-testid="display-animation"/><span class="toggle-slider"></span></label>
+          </div>
+          <div style="margin-top:20px;display:flex;gap:10px">
+            <button class="btn btn-primary" id="save-display-btn" data-testid="save-display-btn">保存する</button>
+            <button class="btn btn-secondary" id="reset-display-btn" data-testid="reset-display-btn">リセット</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── EMAIL CHANGE ── -->
+      <div class="section" id="section-email">
+        <p class="section-title">メールアドレス変更</p>
+        <div class="pw-card">
+          <div class="form-group">
+            <label for="email-current">現在のメールアドレス</label>
+            <input type="text" id="email-current" data-testid="email-current" readonly style="background:#f8fafc;color:var(--muted)"/>
+          </div>
+          <div class="form-group">
+            <label for="email-new">新しいメールアドレス</label>
+            <input type="email" id="email-new" data-testid="email-new" placeholder="新しいメールアドレスを入力"/>
+            <div class="error-msg" id="email-new-error">正しいメールアドレスを入力してください</div>
+          </div>
+          <div class="form-group">
+            <label for="email-confirm">新しいメールアドレス（確認）</label>
+            <input type="email" id="email-confirm" data-testid="email-confirm" placeholder="もう一度入力"/>
+            <div class="error-msg" id="email-confirm-error">メールアドレスが一致しません</div>
+          </div>
+          <div class="form-group">
+            <label for="email-password">パスワード確認</label>
+            <input type="password" id="email-password" data-testid="email-password" placeholder="現在のパスワードを入力"/>
+            <div class="error-msg" id="email-password-error">パスワードを入力してください</div>
+            <div class="error-msg" id="email-password-wrong">パスワードが正しくありません</div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:4px">
+            <button class="btn btn-primary" id="save-email-btn" data-testid="save-email-btn">変更する</button>
+            <button class="btn btn-secondary" id="cancel-email-btn" data-testid="cancel-email-btn">キャンセル</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PROFILE ── -->
+      <div class="section" id="section-profile">
+        <p class="section-title">プロフィール</p>
+        <div class="profile-card">
+          <div class="profile-avatar" id="profile-avatar">A</div>
+          <div class="form-group">
+            <label for="profile-name">表示名</label>
+            <input type="text" id="profile-name" data-testid="profile-name"/>
+            <div class="error-msg" id="profile-name-error">表示名を入力してください</div>
+          </div>
+          <div class="form-group">
+            <label for="profile-email">メールアドレス</label>
+            <input type="email" id="profile-email" data-testid="profile-email"/>
+            <div class="error-msg" id="profile-email-error">有効なメールアドレスを入力してください</div>
+          </div>
+          <div class="form-group">
+            <label for="profile-bio">自己紹介</label>
+            <textarea id="profile-bio" rows="3" data-testid="profile-bio" placeholder="自己紹介を入力..."></textarea>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-primary" id="save-profile-btn" data-testid="save-profile-btn">保存する</button>
+            <button class="btn btn-secondary" id="cancel-profile-btn" data-testid="cancel-profile-btn">キャンセル</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main-content -->
+  </div><!-- /app-layout -->
+</div><!-- /app-page -->
+
+<!-- ========== BOOK MODAL ========== -->
+<div class="overlay" id="book-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">書籍を追加</h3>
+      <button class="modal-close" id="modal-close" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="form-group">
+      <label for="book-title-input">タイトル <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="book-title-input" data-testid="book-title-input" placeholder="書籍タイトルを入力"/>
+      <div class="error-msg" id="book-title-error">タイトルを入力してください</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="book-genre-input">ジャンル</label>
+        <select id="book-genre-input" data-testid="book-genre-input">
+          <option value="fiction">fiction</option>
+          <option value="non-fiction">non-fiction</option>
+          <option value="tech">tech</option>
+          <option value="manga">manga</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="book-author-input">著者</label>
+        <select id="book-author-input" data-testid="book-author-input">
+          <option value="">なし</option>
+          <option value="山田">山田</option>
+          <option value="中村">中村</option>
+          <option value="高橋">高橋</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="book-status-input">ステータス</label>
+        <select id="book-status-input" data-testid="book-status-input">
+          <option value="unread">未読</option>
+          <option value="reading">読書中</option>
+          <option value="finished">読了</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="book-rating-input">評価</label>
+        <select id="book-rating-input" data-testid="book-rating-input">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="book-pages-input">ページ数</label>
+      <input type="text" id="book-pages-input" data-testid="book-pages-input" placeholder="例：320"/>
+    </div>
+    <div class="form-group">
+      <label for="book-note-input">メモ</label>
+      <textarea id="book-note-input" data-testid="book-note-input" rows="2" placeholder="補足情報を入力..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="modal-cancel">キャンセル</button>
+      <button class="btn btn-warning" id="modal-wishlist" data-testid="modal-wishlist">ウィッシュリスト保存</button>
+      <button class="btn btn-primary" id="modal-save" data-testid="modal-save">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== CONFIRM MODAL ========== -->
+<div class="overlay" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <h3 id="confirm-title">書籍を削除</h3>
+      <button class="modal-close" id="confirm-close" aria-label="閉じる">&times;</button>
+    </div>
+    <p style="color:var(--muted);font-size:.95rem">以下の書籍を削除しますか？この操作は取り消せません。</p>
+    <p id="confirm-book-name" style="font-weight:700;margin-top:10px"></p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="confirm-cancel">キャンセル</button>
+      <button class="btn btn-danger" id="confirm-delete" data-testid="confirm-delete">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== AUTHOR DETAIL MODAL ========== -->
+<div class="overlay" id="author-modal" role="dialog" aria-modal="true" aria-labelledby="author-modal-title">
+  <div class="modal" style="width:420px">
+    <div class="modal-header">
+      <h3 id="author-modal-title">著者詳細</h3>
+      <button class="modal-close" id="author-modal-close" aria-label="閉じる">&times;</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+      <div id="author-modal-avatar" style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;color:#fff"></div>
+      <div>
+        <div id="author-modal-name" style="font-size:1.1rem;font-weight:700"></div>
+        <div id="author-modal-genre" style="color:var(--muted);font-size:.85rem;margin-top:2px"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>メールアドレス</label>
+      <div id="author-modal-email" data-testid="author-modal-email" style="padding:10px 12px;background:#f8fafc;border-radius:var(--radius);font-size:.9rem"></div>
+    </div>
+    <div class="form-group">
+      <label>登録書籍数</label>
+      <div id="author-modal-bookcount" data-testid="author-modal-bookcount" style="padding:10px 12px;background:#f8fafc;border-radius:var(--radius);font-size:.9rem"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="author-modal-cancel">閉じる</button>
+      <button class="btn btn-danger btn-sm" id="author-modal-remove" data-testid="author-modal-remove">著者を削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD AUTHOR MODAL -->
+<div class="overlay" id="add-author-modal" role="dialog" aria-modal="true" aria-labelledby="add-author-title">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <h3 id="add-author-title">著者を追加</h3>
+      <button class="modal-close" id="add-author-modal-close" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="form-group">
+      <label for="new-author-name">著者名 <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="new-author-name" data-testid="new-author-name" placeholder="例：佐藤 一郎"/>
+      <div class="error-msg" id="author-name-error">著者名を入力してください</div>
+    </div>
+    <div class="form-group">
+      <label for="new-author-genre">専門ジャンル</label>
+      <select id="new-author-genre" data-testid="new-author-genre">
+        <option value="fiction">fiction</option>
+        <option value="non-fiction">non-fiction</option>
+        <option value="tech">tech</option>
+        <option value="manga">manga</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="add-author-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="author-add-send" data-testid="author-add-send">追加する</button>
+    </div>
+  </div>
+</div>
+
+<div class="success-toast" id="toast" role="status"></div>
+
+<script>
+// ─── DATA ─────────────────────────────────────────────
+let books = [
+  {id:1,title:'JavaScript入門',genre:'tech',author:'山田',status:'finished',rating:4,pages:320,note:'初心者におすすめ'},
+  {id:2,title:'デザインパターン',genre:'tech',author:'中村',status:'reading',rating:5,pages:480,note:''},
+  {id:3,title:'銀河鉄道の夜',genre:'fiction',author:'高橋',status:'finished',rating:5,pages:180,note:'名作'},
+  {id:4,title:'データ分析入門',genre:'non-fiction',author:'山田',status:'unread',rating:3,pages:250,note:''},
+  {id:5,title:'ワンピース100巻',genre:'manga',author:'',status:'reading',rating:4,pages:200,note:''},
+  {id:6,title:'AI時代の教育',genre:'non-fiction',author:'高橋',status:'unread',rating:3,pages:300,note:'最新の教育論'},
+];
+let nextId = 7;
+let authors = [
+  {id:1,name:'山田太郎',genre:'tech',email:'yamada@example.com',color:'#f97316'},
+  {id:2,name:'中村花子',genre:'tech',email:'nakamura@example.com',color:'#0891b2'},
+  {id:3,name:'高橋次郎',genre:'fiction',email:'takahashi@example.com',color:'#059669'},
+];
+let nextAuthorId = 4;
+let profileData = {name:'Admin User',email:'admin@example.com',bio:''};
+let currentEmail = 'admin@example.com';
+let editingId = null, deletingId = null, viewingAuthorId = null;
+let currentPw = 'password';
+
+// Display settings state
+let displaySettings = {darkmode:false,compact:true,cover:true,rating:true,animation:false};
+let savedDisplaySettings = {...displaySettings};
+
+// ─── UTILS ────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const openModal = id => $(id).classList.add('open');
+const closeModal = id => $(id).classList.remove('open');
+const showToast = (msg,color='var(--success)') => {
+  const t=$('toast'); t.textContent=msg; t.style.background=color; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+};
+const statusLabel = s=>({unread:'未読',reading:'読書中',finished:'読了'}[s]||s);
+const statusBadge = s=>({unread:'badge-unread',reading:'badge-reading',finished:'badge-finished'}[s]);
+const genreBadge = g=>({fiction:'badge-fiction','non-fiction':'badge-non-fiction',tech:'badge-tech',manga:'badge-manga'}[g]);
+const starsHtml = r => '<span class="star">' + '★'.repeat(r) + '☆'.repeat(5-r) + '</span>';
+
+// ─── SIDEBAR ──────────────────────────────────────────
+document.querySelectorAll('.sidebar-item').forEach(el=>{
+  el.onclick=()=>{
+    document.querySelectorAll('.sidebar-item').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active');
+    const sec = el.dataset.section;
+    $('section-'+sec).classList.add('active');
+    if(sec==='stats') renderStats();
+    if(sec==='authors') renderAuthors();
+    if(sec==='display') loadDisplaySettings();
+    if(sec==='email'){
+      $('email-current').value=currentEmail;
+      $('email-new').value='';
+      $('email-confirm').value='';
+      $('email-password').value='';
+      ['email-new-error','email-confirm-error','email-password-error','email-password-wrong'].forEach(id=>$(id).classList.remove('show'));
+    }
+    if(sec==='profile'){
+      $('profile-name').value=profileData.name;
+      $('profile-email').value=profileData.email;
+      $('profile-bio').value=profileData.bio;
+      $('profile-avatar').textContent=profileData.name.charAt(0).toUpperCase();
+    }
+  };
+});
+
+// ─── RENDER BOOKS ─────────────────────────────────────
+function renderBooks(){
+  const q = $('search-input').value.trim().toLowerCase();
+  const fg = $('filter-genre').value;
+  const fa = $('filter-author').value;
+  const list = books.filter(b=>
+    (fg==='all'||b.genre===fg) &&
+    (fa==='all'||(fa==='unknown'?!b.author:b.author===fa)) &&
+    (!q||b.title.toLowerCase().includes(q)||b.author.toLowerCase().includes(q))
+  );
+  const el=$('book-list');
+  $('empty-state').style.display=list.length?'none':'block';
+  el.innerHTML=list.map(b=>`
+    <div class="book-card" data-testid="book-card" data-id="${b.id}">
+      <div class="book-check ${b.status==='finished'?'done':''}" data-testid="read-check-${b.id}" onclick="toggleRead(${b.id})"></div>
+      <div class="book-body">
+        <div class="book-title ${b.status==='finished'?'done':''}" data-testid="book-title-${b.id}">${b.title}</div>
+        <div class="book-meta">
+          <span class="badge ${genreBadge(b.genre)}" data-testid="book-genre-${b.id}">${b.genre}</span>
+          <span class="badge ${statusBadge(b.status)}" data-testid="book-status-${b.id}">${statusLabel(b.status)}</span>
+          <span data-testid="book-rating-${b.id}">${starsHtml(b.rating)}</span>
+          ${b.author?`<span class="book-author" data-testid="book-author-${b.id}">✍️ ${b.author}</span>`:`<span class="book-author" data-testid="book-author-${b.id}" style="color:#94a3b8">著者不明</span>`}
+          ${b.pages?`<span class="book-pages" data-testid="book-pages-${b.id}">📄 ${b.pages}p</span>`:''}
+        </div>
+        ${b.note?`<div class="book-note" data-testid="book-note-${b.id}">💬 ${b.note}</div>`:''}
+      </div>
+      <div class="book-actions">
+        <button class="btn btn-secondary btn-sm" data-testid="edit-btn-${b.id}" onclick="openEdit(${b.id})">編集</button>
+        <button class="btn btn-danger btn-sm" data-testid="delete-btn-${b.id}" onclick="openConfirmDelete(${b.id})">削除</button>
+      </div>
+    </div>
+  `).join('');
+}
+function toggleRead(id){
+  const b=books.find(b=>b.id===id);
+  if(!b)return;
+  b.status=b.status==='finished'?'unread':'finished';
+  renderBooks();
+}
+$('search-input').oninput=renderBooks;
+$('filter-genre').onchange=renderBooks;
+$('filter-author').onchange=renderBooks;
+
+// ─── BOOK MODAL ───────────────────────────────────────
+function resetBookModal(){
+  $('book-title-input').value='';
+  $('book-genre-input').value='fiction';
+  $('book-author-input').value='';
+  $('book-status-input').value='unread';
+  $('book-rating-input').value='3';
+  $('book-pages-input').value='';
+  $('book-note-input').value='';
+  $('book-title-error').classList.remove('show');
+}
+$('add-book-btn').onclick=()=>{
+  editingId=null;
+  $('modal-title').textContent='書籍を追加';
+  resetBookModal();
+  openModal('book-modal');
+  setTimeout(()=>$('book-title-input').focus(),100);
+};
+function openEdit(id){
+  const b=books.find(b=>b.id===id); if(!b)return;
+  editingId=id;
+  $('modal-title').textContent='書籍を編集';
+  $('book-title-input').value=b.title;
+  $('book-genre-input').value=b.genre;
+  $('book-author-input').value=b.author||'';
+  $('book-status-input').value=b.status;
+  $('book-rating-input').value=b.rating;
+  $('book-pages-input').value=b.pages||'';
+  $('book-note-input').value=b.note||'';
+  $('book-title-error').classList.remove('show');
+  openModal('book-modal');
+  setTimeout(()=>$('book-title-input').focus(),100);
+}
+function saveBook(asWishlist=false){
+  const title=$('book-title-input').value.trim();
+  if(!title){$('book-title-error').classList.add('show');return;}
+  $('book-title-error').classList.remove('show');
+  const data={
+    title,
+    genre:$('book-genre-input').value,
+    author:$('book-author-input').value,
+    status:asWishlist?'unread':$('book-status-input').value,
+    rating:parseInt($('book-rating-input').value),
+    pages:$('book-pages-input').value.trim()?parseInt($('book-pages-input').value.trim()):0,
+    note:$('book-note-input').value.trim()
+  };
+  if(editingId){
+    Object.assign(books.find(b=>b.id===editingId),data);
+    showToast('書籍を更新しました');
+  } else {
+    books.unshift({id:nextId++,...data});
+    showToast(asWishlist?'ウィッシュリストに保存しました':'書籍を追加しました');
+  }
+  closeModal('book-modal');renderBooks();
+}
+$('modal-save').onclick=()=>saveBook(false);
+$('modal-wishlist').onclick=()=>saveBook(true);
+$('modal-close').onclick=$('modal-cancel').onclick=()=>closeModal('book-modal');
+
+// ─── CONFIRM DELETE ───────────────────────────────────
+function openConfirmDelete(id){
+  deletingId=id;
+  $('confirm-book-name').textContent=books.find(b=>b.id===id)?.title||'';
+  openModal('confirm-modal');
+}
+$('confirm-delete').onclick=()=>{
+  books=books.filter(b=>b.id!==deletingId);
+  closeModal('confirm-modal');showToast('書籍を削除しました');renderBooks();
+};
+$('confirm-close').onclick=$('confirm-cancel').onclick=()=>closeModal('confirm-modal');
+
+// ─── AUTHORS ──────────────────────────────────────────
+function renderAuthors(query=''){
+  const list=authors.filter(a=>!query||a.name.includes(query)||a.email.includes(query));
+  $('author-list').innerHTML=list.map(a=>`
+    <div class="member-card" data-testid="author-card-${a.id}">
+      <div class="member-avatar" style="background:${a.color}">${a.name.charAt(0)}</div>
+      <div class="member-info">
+        <div class="member-name" data-testid="author-name-${a.id}">${a.name}</div>
+        <div class="member-role" data-testid="author-genre-${a.id}">${a.genre}</div>
+      </div>
+      <div class="member-actions">
+        <button class="btn btn-secondary btn-sm" data-testid="author-detail-btn-${a.id}" onclick="openAuthorDetail(${a.id})">詳細</button>
+      </div>
+    </div>
+  `).join('');
+}
+$('author-search').oninput=e=>renderAuthors(e.target.value.trim());
+function openAuthorDetail(id){
+  const a=authors.find(a=>a.id===id); if(!a)return;
+  viewingAuthorId=id;
+  $('author-modal-title').textContent='著者詳細';
+  $('author-modal-avatar').style.background=a.color;
+  $('author-modal-avatar').textContent=a.name.charAt(0);
+  $('author-modal-name').textContent=a.name;
+  $('author-modal-genre').textContent=a.genre;
+  $('author-modal-email').textContent=a.email;
+  // Count books by this author (match by surname)
+  const surname=a.name.charAt(0)==='山'?'山田':a.name.charAt(0)==='中'?'中村':a.name.charAt(0)==='高'?'高橋':a.name;
+  $('author-modal-bookcount').textContent=books.filter(b=>b.author===surname).length+'冊';
+  openModal('author-modal');
+}
+$('author-modal-close').onclick=$('author-modal-cancel').onclick=()=>closeModal('author-modal');
+$('author-modal-remove').onclick=()=>{
+  const idx=authors.findIndex(a=>a.id===viewingAuthorId);
+  if(idx!==-1) authors.splice(idx,1);
+  closeModal('author-modal');showToast('著者を削除しました','var(--danger)');renderAuthors($('author-search').value.trim());
+};
+$('add-author-btn').onclick=()=>{$('new-author-name').value='';$('new-author-genre').value='fiction';$('author-name-error').classList.remove('show');openModal('add-author-modal');};
+$('add-author-modal-close').onclick=$('add-author-cancel').onclick=()=>closeModal('add-author-modal');
+$('author-add-send').onclick=()=>{
+  const name=$('new-author-name').value.trim();
+  if(!name){$('author-name-error').classList.add('show');return;}
+  $('author-name-error').classList.remove('show');
+  const genre=$('new-author-genre').value;
+  const colors=['#f97316','#0891b2','#059669','#7c3aed','#dc2626','#0284c7'];
+  authors.push({id:nextAuthorId++,name,genre,email:name.toLowerCase().replace(/\s/g,'')+'@example.com',color:colors[authors.length%colors.length]});
+  closeModal('add-author-modal');showToast('著者を追加しました');renderAuthors($('author-search').value.trim());
+};
+
+// ─── STATS ────────────────────────────────────────────
+function renderStats(){
+  const genre=$('stats-genre').value;
+  const author=$('stats-author').value;
+  let list=books;
+  if(genre!=='all') list=list.filter(b=>b.genre===genre);
+  if(author!=='all') list=list.filter(b=>b.author===author);
+  const total=list.length,
+        finished=list.filter(b=>b.status==='finished').length,
+        reading=list.filter(b=>b.status==='reading').length,
+        unread=list.filter(b=>b.status==='unread').length;
+  $('stats-grid').innerHTML=[
+    {num:total,label:'総書籍数',color:'var(--primary)'},
+    {num:finished,label:'読了',color:'var(--success)'},
+    {num:reading,label:'読書中',color:'var(--warning)'},
+    {num:unread,label:'未読',color:'var(--muted)'},
+  ].map(s=>`<div class="stat-card"><div class="stat-num" style="color:${s.color}">${s.num}</div><div class="stat-label">${s.label}</div></div>`).join('');
+  $('stats-tbody').innerHTML=list.map(b=>`
+    <tr data-testid="stats-row-${b.id}">
+      <td>${b.title}</td>
+      <td>${b.author||'不明'}</td>
+      <td><span class="badge ${genreBadge(b.genre)}">${b.genre}</span></td>
+      <td><span class="badge ${statusBadge(b.status)}">${statusLabel(b.status)}</span></td>
+      <td>${starsHtml(b.rating)}</td>
+      <td>${b.pages?b.pages+'p':'—'}</td>
+    </tr>
+  `).join('');
+}
+$('stats-genre').onchange=renderStats;
+$('stats-author').onchange=renderStats;
+$('stats-export-btn').onclick=()=>showToast('エクスポートしました（CSV）');
+
+// ─── DISPLAY SETTINGS ─────────────────────────────────
+const defaultDisplay={darkmode:false,compact:true,cover:true,rating:true,animation:false};
+function loadDisplaySettings(){
+  Object.entries(savedDisplaySettings).forEach(([k,v])=>$('display-'+k).checked=v);
+}
+$('save-display-btn').onclick=()=>{
+  savedDisplaySettings={
+    darkmode:$('display-darkmode').checked,
+    compact:$('display-compact').checked,
+    cover:$('display-cover').checked,
+    rating:$('display-rating').checked,
+    animation:$('display-animation').checked
+  };
+  showToast('表示設定を保存しました');
+};
+$('reset-display-btn').onclick=()=>{
+  Object.entries(defaultDisplay).forEach(([k,v])=>$('display-'+k).checked=v);
+  savedDisplaySettings={...defaultDisplay};
+  showToast('表示設定をリセットしました');
+};
+
+// ─── EMAIL CHANGE ─────────────────────────────────────
+$('save-email-btn').onclick=()=>{
+  const newEmail=$('email-new').value.trim();
+  const confirmEmail=$('email-confirm').value.trim();
+  const pw=$('email-password').value;
+  let ok=true;
+  const emailOk=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail);
+  $('email-new-error').classList.toggle('show',!emailOk); if(!emailOk) ok=false;
+  $('email-confirm-error').classList.toggle('show',emailOk&&newEmail!==confirmEmail); if(newEmail!==confirmEmail) ok=false;
+  $('email-password-error').classList.toggle('show',!pw); if(!pw) ok=false;
+  $('email-password-wrong').classList.remove('show');
+  if(pw&&pw!==currentPw){$('email-password-wrong').classList.add('show');ok=false;}
+  if(!ok)return;
+  currentEmail=newEmail;
+  profileData.email=newEmail;
+  $('email-current').value=currentEmail;
+  $('email-new').value='';
+  $('email-confirm').value='';
+  $('email-password').value='';
+  ['email-new-error','email-confirm-error','email-password-error','email-password-wrong'].forEach(id=>$(id).classList.remove('show'));
+  showToast('メールアドレスを変更しました');
+};
+$('cancel-email-btn').onclick=()=>{
+  $('email-new').value='';
+  $('email-confirm').value='';
+  $('email-password').value='';
+  ['email-new-error','email-confirm-error','email-password-error','email-password-wrong'].forEach(id=>$(id).classList.remove('show'));
+};
+
+// ─── PROFILE ──────────────────────────────────────────
+$('save-profile-btn').onclick=()=>{
+  const name=$('profile-name').value.trim(), email=$('profile-email').value.trim();
+  const emailOk=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  $('profile-name-error').classList.toggle('show',!name);
+  $('profile-email-error').classList.toggle('show',!emailOk);
+  if(!name||!emailOk)return;
+  profileData={name,email,bio:$('profile-bio').value.trim()};
+  $('nav-username').textContent=name;
+  $('profile-avatar').textContent=name.charAt(0).toUpperCase();
+  showToast('プロフィールを保存しました');
+};
+$('cancel-profile-btn').onclick=()=>{
+  $('profile-name').value=profileData.name;
+  $('profile-email').value=profileData.email;
+  $('profile-bio').value=profileData.bio;
+};
+
+// ─── LOGIN ────────────────────────────────────────────
+$('login-btn').onclick=()=>{
+  const u=$('username').value.trim(), p=$('password').value;
+  let ok=true;
+  $('username-error').classList.toggle('show',!u); if(!u)ok=false;
+  $('password-error').classList.toggle('show',!p); if(!p)ok=false;
+  if(!ok)return;
+  if(u!=='admin'||p!=='password'){$('login-error').classList.add('show');return;}
+  $('login-error').classList.remove('show');
+  $('nav-username').textContent=profileData.name;
+  $('email-current').value=currentEmail;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  $('app-page').classList.add('active');
+  renderBooks();
+};
+$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('login-btn').click();});
+$('logout-btn').onclick=()=>{
+  $('username').value='';$('password').value='';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  $('login-page').classList.add('active');
+};
+
+// ─── OVERLAY CLICK CLOSE ──────────────────────────────
+['book-modal','confirm-modal','author-modal','add-author-modal'].forEach(id=>{
+  $(id).addEventListener('click',e=>{if(e.target===$(id))closeModal(id);});
+});
+</script>
+</body>
+</html>
